@@ -1,100 +1,83 @@
-from config import DB_CONFIG
-from flask import Flask, render_template
-from flask_sqlalchemy import SQLAlchemy
-
+import models
+from config import *
+from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 app.config[
-    'SQLALCHEMY_DATABASE_URI'] = f"postgresql+psycopg2://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}/{DB_CONFIG['dbname']}"
+    'SQLALCHEMY_DATABASE_URI'] = f"postgresql+psycopg2://{user}:{password}@{host}/{dbname}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
+models.db.init_app(app)
 
 
-class Project(db.Model):
-    __tablename__ = 'projects'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False)
-    description = db.Column(db.Text)
+@app.route('/')
+def application_check():
+    return "200"
 
 
-class Status(db.Model):
-    __tablename__ = 'status'
+@app.route('/project=<int:project_id>')
+def get_project(project_id):
+    project = models.Project.query.get(project_id)
+    if not project:
+        return jsonify({'error': 'Project not found'}), 404
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(30), nullable=False)
-    description = db.Column(db.Text)
-
-
-class Task(db.Model):
-    __tablename__ = 'tasks'
-
-    id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
-    status_id = db.Column(db.Integer, db.ForeignKey('status.id'), nullable=False)
-    description = db.Column(db.Text)
-
-    project = db.relationship("Project", backref="tasks")
-    status = db.relationship("Status", backref="tasks")
+    project_data = {
+        'id': project.id,
+        'name': project.name,
+        'description': project.description,
+        'start_time': project.start_time.strftime('%Y-%m-%d %H:%M:%S'),
+        'end_time': project.end_time.strftime('%Y-%m-%d %H:%M:%S')
+    }
+    return jsonify(project_data)
 
 
-class Executor(db.Model):
-    __tablename__ = 'executors'
+@app.route('/project=<int:project_id>/task=<int:task_id>')
+def get_task(project_id, task_id):
+    task = models.Task.query.join(models.Project).filter(models.Task.id == task_id,
+                                                         models.Project.id == project_id).first()
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(30), nullable=False)
-    surname = db.Column(db.String(30), nullable=False)
-    email = db.Column(db.String(30), nullable=False)
-    login = db.Column(db.String(30), nullable=False)
-    password = db.Column(db.String(30), nullable=False)
-
-
-class TaskExecutor(db.Model):
-    __tablename__ = 'task_executors'
-
-    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), primary_key=True)
-    executor_id = db.Column(db.Integer, db.ForeignKey('executors.id'), primary_key=True)
-
-
-class Comment(db.Model):
-    __tablename__ = 'comments'
-
-    id = db.Column(db.Integer, primary_key=True)
-    comment = db.Column(db.Text, nullable=False)
-    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), nullable=False)
+    task_data = {
+        'id': task.id,
+        'project_id': task.project_id,
+        'description': task.description,
+        'start_time': task.start_time.strftime('%Y-%m-%d %H:%M:%S'),
+        'end_time': task.end_time.strftime('%Y-%m-%d %H:%M:%S'),
+        'executor_id': task.executor_id,
+        'status_id': task.status_id
+    }
+    return jsonify(task_data)
 
 
-class File(db.Model):
-    __tablename__ = 'files'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    path = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text)
-    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), nullable=False)
-
-
-@app.route('/api/get_info')
-def get_info():
-    project = Project.query.all()
-    return render_template('index.html', projects=project)
+@app.route('/projects', methods=['POST'])
+def create_project():
+    data = request.json
+    new_project = models.Project(
+        name=data['name'],
+        description=data['description'],
+        start_time=data['start_time'],
+        end_time=data['end_time']
+    )
+    models.db.session.add(new_project)
+    models.db.session.commit()
+    return jsonify({'message': 'Project created successfully'}), 201
 
 
-# @app.route('/api/post_task')
-# def post_task():
-#     return 'post task'
-#
-#
-# @app.route('/api/put_task')
-# def put_task():
-#     return 'put task'
-#
-#
-# @app.route('/api/delete_task')
-# def delete_task():
-#     return 'delete task'
+@app.route('/projects/tasks', methods=['POST'])
+def create_task():
+    data = request.json
+    new_task = models.Task(
+        project_id=data['project_id'],
+        description=data['description'],
+        start_time=data['start_time'],
+        end_time=data['end_time'],
+        executor_id=data['executor_id'],
+        status_id=data['status_id']
+    )
+    models.db.session.add(new_task)
+    models.db.session.commit()
+    return jsonify({'message': 'Task created successfully'}), 201
 
 
 if __name__ == '__main__':
