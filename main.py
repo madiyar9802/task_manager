@@ -1,6 +1,7 @@
 import models
 from config import *
 from flask import Flask, jsonify, request
+from basic_auth import requires_auth
 
 app = Flask(__name__)
 app.config[
@@ -16,6 +17,7 @@ def application_check():
 
 
 @app.route('/project=<int:project_id>')
+@requires_auth
 def get_project(project_id):
     project = models.Project.query.get(project_id)
     if not project:
@@ -31,7 +33,23 @@ def get_project(project_id):
     return jsonify(project_data)
 
 
+@app.route('/project=<int:project_id>', methods=['PUT'])
+@requires_auth
+def update_project(project_id):
+    project = models.Project.query.get(project_id)
+    if not project:
+        return jsonify({'error': 'Project not found'}), 404
+    data = request.json
+    project.name = data.get('name', project.name)
+    project.description = data.get('description', project.description)
+    project.start_time = data.get('start_time', project.start_time)
+    project.end_time = data.get('end_time', project.end_time)
+    models.db.session.commit()
+    return jsonify({'message': 'Project updated successfully'})
+
+
 @app.route('/project=<int:project_id>/task=<int:task_id>')
+@requires_auth
 def get_task(project_id, task_id):
     task = models.Task.query.join(models.Project).filter(models.Task.id == task_id,
                                                          models.Project.id == project_id).first()
@@ -51,6 +69,7 @@ def get_task(project_id, task_id):
 
 
 @app.route('/projects', methods=['POST'])
+@requires_auth
 def create_project():
     data = request.json
     new_project = models.Project(
@@ -65,6 +84,7 @@ def create_project():
 
 
 @app.route('/projects/tasks', methods=['POST'])
+@requires_auth
 def create_task():
     data = request.json
     new_task = models.Task(
