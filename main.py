@@ -2,6 +2,8 @@ import models
 from config import *
 from flask import Flask, jsonify, request
 from basic_auth import requires_auth
+from models import Executor, db
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.config[
@@ -14,6 +16,41 @@ models.db.init_app(app)
 @app.route('/')
 def application_check():
     return "200"
+
+
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.json
+    name = data.get('name')
+    surname = data.get('surname')
+    email = data.get('email')
+    login = data.get('login')
+    password = data.get('password')
+    if not (name and surname and email and login and password):
+        return jsonify({'error': 'Требуется логин и пароль'}), 400
+    if Executor.query.filter_by(login=login).first():
+        return jsonify({'error': 'Пользователь уже существует'}), 400
+    hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+    new_user = Executor(name=name, surname=surname, email=email, login=login, password=hashed_password)
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({'message': 'Регистрация успешно завершена'}), 201
+
+
+@app.route('/change_password', methods=['PUT'])
+def change_password():
+    auth = request.authorization
+    data = request.json
+    old_password = data.get('old_password')
+    new_password = data.get('new_password')
+    if not old_password or not new_password:
+        return jsonify({'error': 'Требуется ввести старый и новый пароль'}), 400
+    user = Executor.query.filter_by(login=auth.username).first()
+    if not (user or check_password_hash(user.password, old_password)):
+        return jsonify({'error': 'Старый пароль введен неверно'}), 400
+    user.password = generate_password_hash(new_password, method='pbkdf2:sha256')
+    db.session.commit()
+    return jsonify({'message': 'Пароль успешно сменен'})
 
 
 @app.route('/project=<int:project_id>')

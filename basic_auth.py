@@ -1,10 +1,11 @@
 from flask import request, Response
 from models import Executor
 from functools import wraps
+from werkzeug.security import check_password_hash
 
 def check_auth(login, password):
     user = Executor.query.filter_by(login=login).first()
-    if user and user.password == password:
+    if user and check_password_hash(user.password, password):
         return True
     return False
 

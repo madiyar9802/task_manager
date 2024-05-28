@@ -63,7 +63,7 @@ class Executor(db.Model):
     surname = db.Column(db.String(30), nullable=False)
     email = db.Column(db.String(30), nullable=False, unique=True)
     login = db.Column(db.String(30), nullable=False, unique=True)
-    password = db.Column(db.String(30), nullable=False)
+    password = db.Column(db.String(256), nullable=False)
 
     tasks = db.relationship('Task', backref='executor', lazy=True)
 
@@ -72,5 +72,5 @@ class Status(db.Model):
     __tablename__ = 'status'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.Enum(TaskStatusEnum, name="task_status_enum"), nullable=False)
+    name = db.Column(db.Enum(TaskStatusEnum, name="taskstatusenum"), nullable=False)
     description = db.Column(db.Text)
