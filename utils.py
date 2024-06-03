@@ -1,68 +1,47 @@
 import models
-from config import user, password, host, dbname
-from flask import Flask, jsonify, request
-from basic_auth import requires_auth
+import schemas
+from pydantic import ValidationError
+from flask import jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
 
-app = Flask(__name__)
-app.config[
-    'SQLALCHEMY_DATABASE_URI'] = f"postgresql+psycopg2://{user}:{password}@{host}/{dbname}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-models.db.init_app(app)
-
-
-@app.route('/')
-def application_check():
-    return "200"
-
-
-@app.route('/sign_up', methods=['POST'])
 def sign_up():
-    data = request.json
-    name = data.get('name')
-    surname = data.get('surname')
-    email = data.get('email')
-    login = data.get('login')
-    password = data.get('password')
-
-    if not all((name and surname and email and login and password)):
-        return jsonify({'error': 'Требуется ввести все данные'}), 400
-
-    if models.Executor.query.filter_by(login=login).first():
+    try:
+        data = schemas.SignUpModel.parse_obj(request.json)
+    except ValidationError as e:
+        return jsonify({'error': e.errors()}), 400
+    if models.Executor.query.filter_by(login=data.login).first():
         return jsonify({'error': 'Пользователь уже существует'}), 400
 
-    hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-    new_user = models.Executor(name=name, surname=surname, email=email, login=login, password=hashed_password)
+    hashed_password = generate_password_hash(data.password, method='pbkdf2:sha256')
+    new_user = models.Executor(name=data.name,
+                               surname=data.surname,
+                               email=data.email,
+                               login=data.login,
+                               password=hashed_password)
     models.db.session.add(new_user)
     models.db.session.commit()
 
     return jsonify({'message': 'Регистрация успешно завершена'}), 201
 
 
-@app.route('/change_password', methods=['PUT'])
 def change_password():
     auth = request.authorization
-    data = request.json
-    old_password = data.get('old_password')
-    new_password = data.get('new_password')
-
-    if not old_password or not new_password:
-        return jsonify({'error': 'Требуется ввести старый и новый пароль'}), 400
+    try:
+        data = schemas.ChangePassword.parse_obj(request.json)
+    except ValidationError as e:
+        return jsonify({'error': e.errors()}), 400
 
     user = models.Executor.query.filter_by(login=auth.username).first()
-    if not user or not check_password_hash(user.password, old_password):
+    if not user or not check_password_hash(user.password, data.old_password):
         return jsonify({'error': 'Старый пароль введен неверно'}), 400
 
-    user.password = generate_password_hash(new_password, method='pbkdf2:sha256')
+    user.password = generate_password_hash(data.new_password, method='pbkdf2:sha256')
     models.db.session.commit()
 
     return jsonify({'message': 'Пароль успешно сменен'})
 
 
-# PROJECT METHODS
-@app.route('/get_projects')
-@requires_auth
 def get_projects():
     auth = request.authorization
     executor = models.Executor.query.filter_by(login=auth.username).first()
@@ -87,8 +66,6 @@ def get_projects():
     return jsonify(projects_data)
 
 
-@app.route('/get_project/<int:project_id>')
-@requires_auth
 def get_project_id(project_id):
     auth = request.authorization
     executor = models.Executor.query.filter_by(login=auth.username).first()
@@ -113,41 +90,42 @@ def get_project_id(project_id):
     return jsonify({'error': 'Проект не найден'}), 404
 
 
-@app.route('/create_project', methods=['POST'])
-@requires_auth
 def create_project():
-    data = request.json
+    try:
+        data = schemas.CreateProject.parse_obj(request.json)
+    except ValidationError as e:
+        return jsonify({'error': e.errors()}), 400
+
     new_project = models.Project(
-        name=data['name'],
-        description=data['description'],
-        start_time=data['start_time'],
-        end_time=data['end_time']
+        name=data.name,
+        description=data.description,
+        start_time=data.start_time,
+        end_time=data.end_time
     )
     models.db.session.add(new_project)
     models.db.session.commit()
     return jsonify({'message': 'Project created successfully'}), 201
 
 
-@app.route('/update_project/<int:project_id>', methods=['PUT'])
-@requires_auth
 def update_project(project_id):
     project = models.Project.query.get(project_id)
     if not project:
-        return jsonify({'error': 'Project not found'}), 404
+        return jsonify({'error': 'Проект не найден'}), 404
 
-    data = request.json
-    project.name = data.get('name', project.name)
-    project.description = data.get('description', project.description)
-    project.start_time = data.get('start_time', project.start_time)
-    project.end_time = data.get('end_time', project.end_time)
+    try:
+        data = schemas.UpdateProject.parse_obj(request.json)
+    except ValidationError as e:
+        return jsonify({'error': e.errors()}), 400
+
+    project.name = data.name if data.name else project.name
+    project.description = data.description if data.description else project.description
+    project.start_time = data.start_time if data.start_time else project.start_time
+    project.end_time = data.end_time if data.end_time else project.end_time
     models.db.session.commit()
 
-    return jsonify({'message': 'Project updated successfully'})
+    return jsonify({'message': 'Проект успешно обновлен'})
 
 
-# TASK METHODS
-@app.route('/get_tasks')
-@requires_auth
 def get_tasks():
     auth = request.authorization
     executor = models.Executor.query.filter_by(login=auth.username).first()
@@ -171,8 +149,6 @@ def get_tasks():
     return jsonify(tasks_data)
 
 
-@app.route('/get_task/<int:task_id>')
-@requires_auth
 def get_task_id(task_id):
     auth = request.authorization
     executor = models.Executor.query.filter_by(login=auth.username).first()
@@ -201,48 +177,49 @@ def get_task_id(task_id):
     return jsonify(task_data)
 
 
-@app.route('/create_task', methods=['POST'])
-@requires_auth
 def create_task():
     auth = request.authorization
-    data = request.json
+    try:
+        data = schemas.CreateTask.parse_obj(request.json)
+    except ValidationError as e:
+        return jsonify({'error': e.errors()}), 400
+
     executor = models.Executor.query.filter_by(login=auth.username).first()
     new_task = models.Task(
-        project_id=data['project_id'],
-        description=data['description'],
-        start_time=data['start_time'],
-        end_time=data['end_time'],
+        project_id=data.project_id,
+        description=data.description,
+        start_time=data.start_time,
+        end_time=data.end_time,
         executor_id=executor.id,
-        status_id=data['status_id']
+        status_id=data.status_id
     )
     models.db.session.add(new_task)
     models.db.session.commit()
     return jsonify({'message': 'Задача успешно создана'}), 201
 
 
-@app.route('/update_task/<int:task_id>', methods=['PUT'])
-@requires_auth
 def update_task(task_id):
     auth = request.authorization
     executor = models.Executor.query.filter_by(login=auth.username).first()
     task = models.Task.query.filter_by(executor_id=executor.id).first()
-    if not task_id == task.id:
+    if task is None:
         return jsonify({'error': 'Задача не найдена'}), 404
 
-    data = request.json
-    task.status_id = data.get('status_id', task.status_id)
-    task.description = data.get('description', task.description)
-    task.start_time = data.get('start_time', task.start_time)
-    task.end_time = data.get('end_time', task.end_time)
-    task.executor_id = data.get('executor_id', task.executor_id)
+    try:
+        data = schemas.UpdateTask.parse_obj(request.json)
+    except ValidationError as e:
+        return jsonify({'error': e.errors()}), 400
+
+    task.project_id = data.project_id if data.project_id is not None else task.project_id
+    task.status_id = data.status_id if data.status_id is not None else task.status_id
+    task.description = data.description if data.description is not None else task.description
+    task.start_time = data.start_time if data.start_time is not None else task.start_time
+    task.end_time = data.end_time if data.end_time is not None else task.end_time
     models.db.session.commit()
 
     return jsonify({'message': 'Задача успешно обновлена'})
 
 
-# COMMENT METHODS
-@app.route('/task/<int:task_id>/create_comment', methods=['POST'])
-@requires_auth
 def create_comment(task_id):
     auth = request.authorization
     executor = models.Executor.query.filter_by(login=auth.username).first()
@@ -253,10 +230,14 @@ def create_comment(task_id):
     if task is None:
         return jsonify({'error': 'У пользователя нет такой задачи'}), 404
 
-    data = request.json
+    try:
+        data = schemas.CreateComment.parse_obj(request.json)
+    except ValidationError as e:
+        return jsonify({'error': e.errors()}), 400
+
     new_comment = models.Comment(
         task_id=task_id,
-        comment=data['comment_text']
+        comment=data.comment_text
     )
     models.db.session.add(new_comment)
     models.db.session.commit()
@@ -264,8 +245,6 @@ def create_comment(task_id):
     return jsonify({'message': 'Комментарий успешно создан'}), 201
 
 
-@app.route('/task/<int:task_id>/update_comment/<int:comment_id>', methods=['PUT'])
-@requires_auth
 def update_comment(task_id, comment_id):
     auth = request.authorization
     executor = models.Executor.query.filter_by(login=auth.username).first()
@@ -280,16 +259,18 @@ def update_comment(task_id, comment_id):
     if not comment:
         return jsonify({'error': 'Комментария с таким id не существует'}), 404
 
-    data = request.json
-    comment.comment = data.get('comment_text', comment.comment)
-    comment.task_id = data.get(task_id, comment.task_id)
+    try:
+        data = schemas.UpdateComment.parse_obj(request.json)
+    except ValidationError as e:
+        return jsonify({'error': e.errors()}), 400
+
+    comment.comment = data.comment_text if data.comment_text else comment.comment
+    comment.task_id = data.task_id if data.task_id else comment.task_id
     models.db.session.commit()
 
     return jsonify({'message': 'Комментарий успешно изменен'}), 201
 
 
-@app.route('/task/<int:task_id>/delete_comment/<int:comment_id>', methods=['DELETE'])
-@requires_auth
 def delete_comment(task_id, comment_id):
     auth = request.authorization
     executor = models.Executor.query.filter_by(login=auth.username).first()
@@ -308,7 +289,3 @@ def delete_comment(task_id, comment_id):
     models.db.session.commit()
 
     return jsonify({'message': 'Комментарий успешно удален'}), 200
-
-
-if __name__ == '__main__':
-    app.run(debug=True)
