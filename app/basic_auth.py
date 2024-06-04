@@ -1,7 +1,8 @@
 from flask import request, Response
-from models import Executor
+from app.models import Executor
 from functools import wraps
 from werkzeug.security import check_password_hash
+
 
 def check_auth(login, password):
     user = Executor.query.filter_by(login=login).first()

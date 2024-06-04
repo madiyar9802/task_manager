@@ -1,7 +1,4 @@
-import os
-import sys
-from main import app
-from models import db
+from app.models import db
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config

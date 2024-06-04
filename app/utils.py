@@ -1,5 +1,5 @@
-import models
-import schemas
+from app import models
+from schemas import validation_schemas as schemas
 from pydantic import ValidationError
 from flask import jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -159,9 +159,9 @@ def get_task_id(task_id):
     if task is None:
         return jsonify({'error': 'У пользователя нет такой задачи'}), 404
 
+    comment_text = []
     comments = models.Comment.query.filter_by(task_id=task_id).all()
     if comments:
-        comment_text = []
         for comment_data in comments:
             comment_text.append(comment_data.comment)
     task_data = {
@@ -201,7 +201,7 @@ def create_task():
 def update_task(task_id):
     auth = request.authorization
     executor = models.Executor.query.filter_by(login=auth.username).first()
-    task = models.Task.query.filter_by(executor_id=executor.id).first()
+    task = models.Task.query.filter_by(id=task_id, executor_id=executor.id).first()
     if task is None:
         return jsonify({'error': 'Задача не найдена'}), 404
 
