@@ -1,9 +1,9 @@
 from . import models
 from config.config import user, password, host, dbname
 from flask import Flask
-from .auth import auth_bp
-from .projects import project_bp
-from .tasks import task_bp
+from routes.auth import auth_bp
+from routes.projects import project_bp
+from routes.tasks import task_bp
 
 app = Flask(__name__)
 app.config[

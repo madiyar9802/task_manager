@@ -3,6 +3,7 @@ from schemas import validation_schemas as schemas
 from pydantic import ValidationError
 from flask import jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy.orm import joinedload
 
 
 def sign_up():
@@ -44,50 +45,42 @@ def change_password():
 
 def get_projects():
     auth = request.authorization
-    executor = models.Executor.query.filter_by(login=auth.username).first()
-    tasks = models.Task.query.filter_by(executor_id=executor.id).all()
+    projects = models.db.session.query(models.Project).join(models.Task).join(models.Executor).filter(
+        models.Executor.login == auth.username).all()
 
-    if not tasks:
-        return jsonify({'error': 'У пользователя нет задач и проектов'}), 404
+    if not projects:
+        return jsonify({'error': 'У пользователя нет проектов'}), 404
 
     projects_data = []
-    for task in tasks:
-        project = models.Project.query.get(task.project_id)
-        if project:
-            project_data = {
-                'id': project.id,
-                'name': project.name,
-                'description': project.description,
-                'start_time': project.start_time.strftime('%Y-%m-%d %H:%M:%S'),
-                'end_time': project.end_time.strftime('%Y-%m-%d %H:%M:%S')
-            }
-            projects_data.append(project_data)
-
-    return jsonify(projects_data)
-
-
-def get_project_id(project_id):
-    auth = request.authorization
-    executor = models.Executor.query.filter_by(login=auth.username).first()
-
-    if executor is None:
-        return jsonify({'error': 'Пользователь не найден'}), 404
-
-    task = models.Task.query.filter_by(executor_id=executor.id, project_id=project_id).first()
-    if task is None:
-        return jsonify({'error': 'У пользователя нет такого проекта'}), 404
-
-    project = models.Project.query.get(project_id)
-    if project:
-        project_data = {
+    for project in projects:
+        data = {
             'id': project.id,
             'name': project.name,
             'description': project.description,
             'start_time': project.start_time.strftime('%Y-%m-%d %H:%M:%S'),
             'end_time': project.end_time.strftime('%Y-%m-%d %H:%M:%S')
         }
-        return jsonify(project_data)
-    return jsonify({'error': 'Проект не найден'}), 404
+        projects_data.append(data)
+
+    return jsonify(projects_data)
+
+
+def get_project_id(project_id):
+    auth = request.authorization
+    project = models.db.session.query(models.Project).join(models.Task).join(models.Executor).filter(
+        models.Executor.login == auth.username, models.Project.id == project_id).first()
+
+    if not project:
+        return jsonify({'error': 'У пользователя нет такого проекта'}), 404
+
+    project_data = {
+        'id': project.id,
+        'name': project.name,
+        'description': project.description,
+        'start_time': project.start_time.strftime('%Y-%m-%d %H:%M:%S'),
+        'end_time': project.end_time.strftime('%Y-%m-%d %H:%M:%S')
+    }
+    return jsonify(project_data)
 
 
 def create_project():
@@ -128,12 +121,14 @@ def update_project(project_id):
 
 def get_tasks():
     auth = request.authorization
-    executor = models.Executor.query.filter_by(login=auth.username).first()
-    tasks = models.Task.query.filter_by(executor_id=executor.id).all()
+    tasks = (
+        models.db.session.query(models.Task).join(models.Executor).filter(models.Executor.login == auth.username).all()
+    )
+
     if not tasks:
         return jsonify({'error': 'У пользователя нет задач'}), 404
 
-    tasks_data = []
+    all_tasks_data = []
     for task in tasks:
         task_data = {
             'id': task.id,
@@ -144,32 +139,30 @@ def get_tasks():
             'executor_id': task.executor_id,
             'status_id': task.status_id
         }
-        tasks_data.append(task_data)
+        all_tasks_data.append(task_data)
 
-    return jsonify(tasks_data)
+    return jsonify(all_tasks_data)
 
 
 def get_task_id(task_id):
     auth = request.authorization
-    executor = models.Executor.query.filter_by(login=auth.username).first()
-    if executor is None:
-        return jsonify({'error': 'Пользователь не найден'}), 404
+    task = (models.db.session.query(models.Task)
+            .join(models.Executor)
+            .filter(models.Executor.login == auth.username, models.Task.id == task_id)
+            .options(joinedload(models.Task.comments))
+            .first())
 
-    task = models.Task.query.filter_by(id=task_id, executor_id=executor.id).first()
-    if task is None:
+    if not task:
         return jsonify({'error': 'У пользователя нет такой задачи'}), 404
 
-    comment_text = []
-    comments = models.Comment.query.filter_by(task_id=task_id).all()
-    if comments:
-        for comment_data in comments:
-            comment_text.append(comment_data.comment)
+    comment_text = [comment.comment for comment in task.comments]
+
     task_data = {
         'id': task.id,
         'project_id': task.project_id,
         'description': task.description,
-        'start_time': task.start_time.strftime('%Y-%m-%d %H:%M:%S'),
-        'end_time': task.end_time.strftime('%Y-%m-%d %H:%M:%S'),
+        'start_time': task.start_time.strftime('%Y-%m-%d %H:%M:%S') if task.start_time else None,
+        'end_time': task.end_time.strftime('%Y-%m-%d %H:%M:%S') if task.end_time else None,
         'executor_id': task.executor_id,
         'status_id': task.status_id,
         'comments': comment_text
@@ -200,8 +193,9 @@ def create_task():
 
 def update_task(task_id):
     auth = request.authorization
-    executor = models.Executor.query.filter_by(login=auth.username).first()
-    task = models.Task.query.filter_by(id=task_id, executor_id=executor.id).first()
+    task = models.db.session.query(models.Task).join(models.Executor).filter(models.Executor.login == auth.username,
+                                                                             models.Task.id == task_id).first()
+
     if task is None:
         return jsonify({'error': 'Задача не найдена'}), 404
 
@@ -222,12 +216,12 @@ def update_task(task_id):
 
 def create_comment(task_id):
     auth = request.authorization
-    executor = models.Executor.query.filter_by(login=auth.username).first()
-    if executor is None:
-        return jsonify({'error': 'Пользователь не найден'}), 404
+    task = (models.db.session.query(models.Task)
+            .join(models.Executor)
+            .filter(models.Executor.login == auth.username, models.Task.id == task_id)
+            .first())
 
-    task = models.Task.query.filter_by(id=task_id, executor_id=executor.id).first()
-    if task is None:
+    if not task:
         return jsonify({'error': 'У пользователя нет такой задачи'}), 404
 
     try:
@@ -247,17 +241,15 @@ def create_comment(task_id):
 
 def update_comment(task_id, comment_id):
     auth = request.authorization
-    executor = models.Executor.query.filter_by(login=auth.username).first()
-    if executor is None:
-        return jsonify({'error': 'Пользователь не найден'}), 404
+    comment = (models.db.session.query(models.Comment)
+               .join(models.Task)
+               .join(models.Executor)
+               .filter(models.Executor.login == auth.username, models.Task.id == task_id, models.Comment.id
+                       == comment_id)
+               .first())
 
-    task = models.Task.query.filter_by(id=task_id, executor_id=executor.id).first()
-    if task is None:
-        return jsonify({'error': 'У пользователя нет такой задачи'}), 404
-
-    comment = models.Comment.query.get(comment_id)
     if not comment:
-        return jsonify({'error': 'Комментария с таким id не существует'}), 404
+        return jsonify({'error': 'Задачи, либо комментария с таким id не существует'}), 404
 
     try:
         data = schemas.UpdateComment.parse_obj(request.json)
@@ -273,17 +265,15 @@ def update_comment(task_id, comment_id):
 
 def delete_comment(task_id, comment_id):
     auth = request.authorization
-    executor = models.Executor.query.filter_by(login=auth.username).first()
-    if executor is None:
-        return jsonify({'error': 'Пользователь не найден'}), 404
+    comment = (models.db.session.query(models.Comment)
+               .join(models.Task)
+               .join(models.Executor)
+               .filter(models.Executor.login == auth.username, models.Task.id == task_id, models.Comment.id
+                       == comment_id)
+               .first())
 
-    task = models.Task.query.filter_by(id=task_id, executor_id=executor.id).first()
-    if task is None:
-        return jsonify({'error': 'У пользователя нет такой задачи'}), 404
-
-    comment = models.Comment.query.filter_by(id=comment_id, task_id=task.id).first()
-    if comment is None:
-        return jsonify({'error': 'Комментария с таким id не существует'}), 404
+    if not comment:
+        return jsonify({'error': 'Задачи, либо комментария с таким id не существует'}), 404
 
     models.db.session.delete(comment)
     models.db.session.commit()
