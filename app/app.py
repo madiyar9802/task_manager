@@ -4,6 +4,7 @@ from flask import Flask
 from routes.auth import auth_bp
 from routes.projects import project_bp
 from routes.tasks import task_bp
+from error_handlers.error_handlers import register_error_handlers
 
 app = Flask(__name__)
 app.config[
@@ -21,6 +22,8 @@ def application_check():
 app.register_blueprint(auth_bp)
 app.register_blueprint(project_bp)
 app.register_blueprint(task_bp)
+
+register_error_handlers(app)
 
 if __name__ == '__main__':
     app.run(debug=True)
