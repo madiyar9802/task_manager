@@ -3,7 +3,7 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
+from config.config import user, password, host, dbname
 from alembic import context
 
 # this is the Alembic Config object, which provides
@@ -25,6 +25,9 @@ target_metadata = db.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+# Set the database URL
+database_url = f"postgresql+psycopg2://{user}:{password}@{host}/{dbname}"
+config.set_main_option("sqlalchemy.url", database_url)
 
 
 def run_migrations_offline() -> None:
