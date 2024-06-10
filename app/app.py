@@ -1,3 +1,4 @@
+import logging
 from . import models
 from config.config import user, password, host, dbname
 from flask import Flask
@@ -13,9 +14,17 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 models.db.init_app(app)
 
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)s %(message)s',
+                    handlers=[
+                        logging.FileHandler("app.log"),
+                        logging.StreamHandler()
+                    ])
+
 
 @app.route('/')
 def application_check():
+    app.logger.debug("Application check endpoint was reached.")
     return "200"
 
 
