@@ -1,16 +1,20 @@
 import logging
+import os
+
 from . import models
-from config.config import user, password, host, dbname
 from flask import Flask
 from routes.auth import auth_bp
 from routes.projects import project_bp
 from routes.tasks import task_bp
 from error_handlers.error_handlers import register_error_handlers
+from dotenv import load_dotenv
+from config import config
+
+load_dotenv()
 
 app = Flask(__name__)
-app.config[
-    'SQLALCHEMY_DATABASE_URI'] = f"postgresql+psycopg2://{user}:{password}@{host}/{dbname}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+config_name = os.getenv('FLASK_CONFIG', 'development')
+app.config.from_object(config.app_config[config_name])
 
 models.db.init_app(app)
 
@@ -24,7 +28,7 @@ logging.basicConfig(level=logging.DEBUG,
 
 @app.route('/')
 def application_check():
-    app.logger.debug("Application check endpoint was reached.")
+    app.logger.debug("Application check endpoint has been reached.")
     return "200"
 
 
@@ -35,4 +39,4 @@ app.register_blueprint(task_bp)
 register_error_handlers(app)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
