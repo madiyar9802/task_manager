@@ -1,12 +1,12 @@
-from flask import request, Response
+from flask import Response, g
 from app.models import Executor
 from functools import wraps
 from werkzeug.security import check_password_hash
 
 
-def check_auth(login, password):
-    user = Executor.query.filter_by(login=login).first()
-    if user and check_password_hash(user.password, password):
+def check_auth():
+    user = Executor.query.filter_by(login=g.username).first()
+    if user and check_password_hash(user.password, g.password):
         return True
     return False
 
@@ -21,8 +21,7 @@ def authenticate():
 def requires_auth(func):
     @wraps(func)
     def decorated(*args, **kwargs):
-        auth = request.authorization
-        if not auth or not check_auth(auth.username, auth.password):
+        if not all((g.username, g.password, check_auth())):
             return authenticate()
         return func(*args, **kwargs)
 
