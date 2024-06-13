@@ -1,7 +1,9 @@
-import logging
+import logging.config
 import os
+import yaml
 
 from . import models
+import logging.handlers
 from flask import Flask, request, g
 from routes.auth import auth_bp
 from routes.projects import project_bp
@@ -19,12 +21,10 @@ app.config.from_object(config.app_config[config_name])
 
 models.db.init_app(app)
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s %(levelname)s %(message)s',
-                    handlers=[
-                        logging.FileHandler("app.log"),
-                        logging.StreamHandler()
-                    ])
+with open('config/log_config.yaml', 'r') as file:
+    log_config = yaml.safe_load(file)
+
+logging.config.dictConfig(log_config)
 
 
 @app.before_request
