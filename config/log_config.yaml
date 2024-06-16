@@ -1,22 +1,32 @@
 version: 1
 disable_existing_loggers: False
 formatters:
-  request_formatter:
-    (): config.custom_logger.RequestFormatter
-    format: '[%(asctime)s] %(remote_addr)s %(username)s requested %(url)s %(levelname)s in %(module)s: %(message)s'
+  classic_formatter:
+    format: '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
 handlers:
   console:
     class: logging.StreamHandler
     level: DEBUG
-    formatter: request_formatter
+    formatter: classic_formatter
     stream: ext://sys.stdout
   rotating_file:
     class: logging.handlers.TimedRotatingFileHandler
     level: DEBUG
-    formatter: request_formatter
-    filename: app.log
-    when: D
+    formatter: classic_formatter
+    filename: logs/my_app.log
+    when: midnight
     interval: 1
     backupCount: 7
+loggers:
+  app:
+    level: DEBUG
+    handlers: [ console, rotating_file ]
+    propagate: no
+root:
+  level: DEBUG
+  handlers: [ console, rotating_file ]
+
+
 
 

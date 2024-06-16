@@ -1,16 +1,22 @@
 from logic import auth_logic
-from flask import Blueprint, current_app, g
+from flask import Blueprint
 
 auth_bp = Blueprint('auth', __name__)
 
 
+@auth_bp.route('/')
+def application_check():
+    return "200"
+
+@auth_bp.route('/favicon.ico')
+def favicon():
+    return ""
+
 @auth_bp.route('/sign_up', methods=['POST'])
 def sign_up():
-    current_app.logger.info("New user has been created")
     return auth_logic.sign_up()
 
 
 @auth_bp.route('/change_password', methods=['PUT'])
 def change_password():
-    current_app.logger.info("Password update successful")
     return auth_logic.change_password()

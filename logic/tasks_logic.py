@@ -11,7 +11,7 @@ def get_tasks():
     )
 
     if not tasks:
-        return jsonify({'error': 'No tasks found for user'}), 404
+        return jsonify({'error': 'Задачи не найдены'}), 404
 
     all_tasks_data = [
         {
@@ -94,3 +94,14 @@ def update_task(task_id):
     models.db.session.commit()
 
     return jsonify({'message': 'Задача успешно обновлена'})
+
+
+def create_statuses():
+    statuses = [
+        models.Status(name='New', description='Task has just started'),
+        models.Status(name='In progress', description='Task is being in progress'),
+        models.Status(name='Done', description='Task is done')
+    ]
+
+    models.db.session.add_all(statuses)
+    models.db.session.commit()
