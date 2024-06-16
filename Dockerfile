@@ -1,7 +1,7 @@
 FROM python:3.11.0
 
 RUN mkdir /app
-WORKDIR /app2
+WORKDIR /app
 COPY . .
 
 RUN pip3 install poetry
