@@ -11,7 +11,6 @@ from routes.comments import comment_bp
 from error_handlers.error_handlers import register_error_handlers
 from dotenv import load_dotenv
 from config import config
-from logic.tasks_logic import create_statuses
 
 # Загрузка переменных окружения из .env файла
 load_dotenv()
@@ -23,12 +22,6 @@ app.config.from_object(config.app_config[config_name])
 
 # Инициализация базы данных с приложением
 models.db.init_app(app)
-
-
-# # Создаем статусы в базе данных
-with app.app_context():
-    create_statuses()
-
 
 # Открываем конфигурационный файл для логирования в формате .yaml
 with open('config/log_config.yaml', 'r') as file:
