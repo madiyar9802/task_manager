@@ -53,9 +53,9 @@ def get_auth_data():
 
 # Регистрация всех маршрутов (blueprints)
 app.register_blueprint(auth_bp)
-app.register_blueprint(project_bp)
-app.register_blueprint(task_bp)
-app.register_blueprint(comment_bp)
+app.register_blueprint(project_bp, url_prefix='/projects')
+app.register_blueprint(task_bp, url_prefix='/tasks')
+app.register_blueprint(comment_bp, url_prefix='/task')
 
 # Регистрация обработчиков ошибок
 register_error_handlers(app)

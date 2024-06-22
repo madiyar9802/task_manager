@@ -5,6 +5,11 @@ from flask import jsonify, g
 
 
 def create_comment(task_id):
+    try:
+        data = schemas.CreateComment.parse_obj(g.data)
+    except ValidationError as e:
+        return jsonify({'error': e.errors()}), 400
+
     task = (models.db.session.query(models.Task)
             .join(models.Executor)
             .filter(models.Executor.login == g.username, models.Task.id == task_id)
@@ -12,11 +17,6 @@ def create_comment(task_id):
 
     if not task:
         return jsonify({'error': 'У пользователя нет такой задачи'}), 404
-
-    try:
-        data = schemas.CreateComment.parse_obj(g.data)
-    except ValidationError as e:
-        return jsonify({'error': e.errors()}), 400
 
     new_comment = models.Comment(
         task_id=task_id,
@@ -29,6 +29,11 @@ def create_comment(task_id):
 
 
 def update_comment(task_id, comment_id):
+    try:
+        data = schemas.UpdateComment.parse_obj(g.data)
+    except ValidationError as e:
+        return jsonify({'error': e.errors()}), 400
+
     comment = (models.db.session.query(models.Comment)
                .join(models.Task)
                .join(models.Executor)
@@ -38,11 +43,6 @@ def update_comment(task_id, comment_id):
 
     if not comment:
         return jsonify({'error': 'Задачи, либо комментария с таким id не существует'}), 404
-
-    try:
-        data = schemas.UpdateComment.parse_obj(g.data)
-    except ValidationError as e:
-        return jsonify({'error': e.errors()}), 400
 
     comment.comment = data.comment_text if data.comment_text else comment.comment
     comment.task_id = data.task_id if data.task_id else comment.task_id

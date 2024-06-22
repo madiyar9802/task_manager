@@ -50,7 +50,7 @@ def change_password():
 
 # Project requests
 def create_project():
-    url = f"{pref_url}/create_project"
+    url = f"{pref_url}/projects/create"
     auth = ("test123", "testingmyproject")
     data = {
         'name': 'Project for my app',
@@ -72,7 +72,7 @@ def create_project():
 
 
 def get_projects():
-    url = f"{pref_url}/get_projects"
+    url = f"{pref_url}/projects"
     auth = ("test123", "testingmyproject")
 
     response = requests.get(url, auth=auth)
@@ -88,7 +88,7 @@ def get_projects():
 
 
 def get_project_id():
-    url = f"{pref_url}/get_project/1"
+    url = f"{pref_url}/projects/1"
     auth = ("test123", "testingmyproject")
 
     response = requests.get(url, auth=auth)
@@ -106,7 +106,7 @@ def get_project_id():
 def update_project():
     project_id = 1
     auth = ("test123", "testingmyproject")
-    url = f"{pref_url}/update_project/{project_id}"
+    url = f"{pref_url}/update/{project_id}"
 
     data = {
         'name': 'New Project name',
@@ -129,14 +129,14 @@ def update_project():
 
 # Task requests
 def create_task():
-    url = f"{pref_url}/create_task"
+    url = f"{pref_url}/tasks/create"
     auth = ("test123", "testingmyproject")
     data = {
         'project_id': 1,
         'description': 'Task description',
-        'start_time': '2024-06-02T12:00:00',
-        'end_time': '2024-06-30T12:00:00',
-        'status_id': 1
+        # 'start_time': '2024-06-02T12:00:00',
+        # 'end_time': '2024-06-30T12:00:00',
+        # 'status_id': 1
     }
 
     response = requests.post(url, json=data, auth=auth)
@@ -146,7 +146,7 @@ def create_task():
 
 
 def get_tasks():
-    url = f"{pref_url}/get_tasks"
+    url = f"{pref_url}/tasks"
     auth = ("test123", "testingmyproject")
 
     response = requests.get(url, auth=auth)
@@ -162,7 +162,7 @@ def get_tasks():
 
 
 def get_task_id():
-    url = f"{pref_url}/get_task/1"
+    url = f"{pref_url}/tasks/1"
     auth = ("test123", "testingmyproject")
 
     response = requests.get(url, auth=auth)
@@ -179,7 +179,7 @@ def get_task_id():
 
 def update_task():
     task_id = 1
-    url = f"{pref_url}/update_task/{task_id}"
+    url = f"{pref_url}/tasks/update/{task_id}"
     auth = ("test123", "testingmyproject")
     data = {
         'project_id': 1,
@@ -257,22 +257,23 @@ def delete_comment():
 
 
 # Вызываем функции
-sign_up()
-change_password()
+def main():
+    sign_up()
+    change_password()
 
-create_project()
-create_task()
-get_projects()
-get_project_id()
-update_project()
+    create_project()
+    create_task()
+    get_projects()
+    get_project_id()
+    update_project()
 
-get_tasks()
-get_task_id()
-update_task()
+    get_tasks()
+    get_task_id()
+    update_task()
 
-create_comment()
-create_comment()
-create_comment()
-create_comment()
-update_comment()
-delete_comment()
+    for _ in range(5):
+        create_comment()
+    update_comment()
+    delete_comment()
+
+# main()
