@@ -8,9 +8,6 @@ auth_bp = Blueprint('auth', __name__)
 def application_check():
     return "200"
 
-@auth_bp.route('/favicon.ico')
-def favicon():
-    return ""
 
 @auth_bp.route('/sign_up', methods=['POST'])
 def sign_up():
