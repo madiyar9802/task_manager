@@ -32,9 +32,9 @@ class UpdateProject(BaseModel):
 class CreateTask(BaseModel):
     project_id: int
     description: str
-    start_time: str
-    end_time: str
-    status_id: int
+    start_time: str = None
+    end_time: str = None
+    status_id: int = None
 
     @field_validator('start_time', 'end_time')
     def valid_date(cls, v):

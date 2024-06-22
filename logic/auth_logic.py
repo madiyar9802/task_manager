@@ -10,6 +10,7 @@ def sign_up():
         data = schemas.SignUpModel.parse_obj(g.data)
     except ValidationError as e:
         return jsonify({'error': e.errors()}), 400
+
     if models.Executor.query.filter_by(login=data.login).first():
         return jsonify({'error': 'Пользователь уже существует'}), 400
 

@@ -56,18 +56,18 @@ def create_project():
     )
     models.db.session.add(new_project)
     models.db.session.commit()
-    return jsonify({'message': 'Проект успешно создан'}), 201
+    return jsonify({'message': f'Проект успешно создан, ID проекта - {new_project.id}'}), 201
 
 
 def update_project(project_id):
-    project = models.Project.query.get(project_id)
-    if not project:
-        return jsonify({'error': 'Проект не найден'}), 404
-
     try:
         data = schemas.UpdateProject.parse_obj(g.data)
     except ValidationError as e:
         return jsonify({'error': e.errors()}), 400
+
+    project = models.Project.query.get(project_id)
+    if not project:
+        return jsonify({'error': 'Проект не найден'}), 404
 
     project.name = data.name if data.name else project.name
     project.description = data.description if data.description else project.description

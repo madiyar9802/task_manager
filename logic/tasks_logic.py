@@ -60,31 +60,36 @@ def create_task():
     except ValidationError as e:
         return jsonify({'error': e.errors()}), 400
 
+    project = models.Project.query.filter_by(id=data.project_id).first()
+    if project is None:
+        return jsonify({'error': 'Проект не найден'}), 400
+
     executor = models.Executor.query.filter_by(login=g.username).first()
     new_task = models.Task(
         project_id=data.project_id,
         description=data.description,
-        start_time=data.start_time,
-        end_time=data.end_time,
+        start_time=data.start_time if data.start_time else None,
+        end_time=data.end_time if data.end_time else None,
         executor_id=executor.id,
-        status_id=data.status_id
+        status_id=data.status_id if data.status_id else 1
     )
+
     models.db.session.add(new_task)
     models.db.session.commit()
-    return jsonify({'message': 'Задача успешно создана'}), 201
+    return jsonify({'message': f'Задача успешно создана, ID задачи - {new_task.id}'}), 201
 
 
 def update_task(task_id):
+    try:
+        data = schemas.UpdateTask.parse_obj(g.data)
+    except ValidationError as e:
+        return jsonify({'error': e.errors()}), 400
+
     task = models.db.session.query(models.Task).join(models.Executor).filter(models.Executor.login == g.username,
                                                                              models.Task.id == task_id).first()
 
     if task is None:
         return jsonify({'error': 'Задача не найдена'}), 404
-
-    try:
-        data = schemas.UpdateTask.parse_obj(g.data)
-    except ValidationError as e:
-        return jsonify({'error': e.errors()}), 400
 
     task.project_id = data.project_id if data.project_id is not None else task.project_id
     task.status_id = data.status_id if data.status_id is not None else task.status_id
